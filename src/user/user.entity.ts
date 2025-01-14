@@ -27,9 +27,6 @@ export class UserEntity {
   @Column({ nullable: true })
   age: number;
 
-  @Column({ unique: false, nullable: true })
-  email: string;
-
   @OneToOne(()=>ClubEntity, club=>club.admin)
   adminClub: ClubEntity;
 
