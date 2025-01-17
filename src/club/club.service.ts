@@ -24,59 +24,62 @@ export class ClubService {
     console.log(createClubInfo);
     const basicClubInfo = {
       clubName: createClubInfo.clubName,
-    };
+    }
     const club = this.clubRepository.create(basicClubInfo);
     const savedClub = await this.clubRepository.save(club);
 
     if (createClubInfo.admin) {
-      const admin = await this.userRepository.findOne({
-        where: { name: createClubInfo.admin.name },
-      });
-      const foundPosition = await this.positionRepository.findOne({
-        where: { name: createClubInfo.clubName+"部长" },
-      })
+      if(!createClubInfo.admin){
+        await this.clubRepository.delete({clubName:createClubInfo.clubName})
+        return {message:"admin name cannot be empty string"}
+      }
+      const admin = await this.userRepository.findOne({where: { name: createClubInfo.admin.name }});
+      const foundPosition = await this.positionRepository.findOne({where: { name: createClubInfo.clubName+"部长" }})
       if (admin) {
         admin.role = userRole.admin
-        if(foundPosition){
-          admin.position = foundPosition
-        }
+        if(foundPosition){admin.position = foundPosition}
         else{
-          const newPosition = new PositionEntity()
-          newPosition.name = createClubInfo.clubName+"部长"
-          admin.position = newPosition
+          // @ts-ignore
+          admin.position = {name: createClubInfo.clubName+"部长"}
         }
-        createClubInfo.admin.role = userRole.admin;
         savedClub.admin = admin;
       } else {
         if(foundPosition){
           createClubInfo.admin.position = foundPosition
         }
-        else{
-          const newPosition = new PositionEntity()
-          newPosition.name = createClubInfo.clubName+"部长"
-          createClubInfo.position = newPosition
-        }
+        else{createClubInfo.admin.position = {name: createClubInfo.clubName+"部长"}}
         createClubInfo.admin.role = userRole.admin;
-        savedClub.admin = createClubInfo.admin;
+        savedClub.admin = createClubInfo.admin
       }
     }
 
 
     if (createClubInfo.positions) {
-      for (const position of createClubInfo.positions) {
-        if (position.users) {
-          const updatedUsers = [];
-          for (const user of position.users) {
-            const foundUser = await this.userRepository.findOne({
-              where: { name: user.name },
-            });
-            updatedUsers.push(foundUser || user);
-          }
-          position.users = updatedUsers; // 更新 users 数据
+      // for (const position of createClubInfo.positions) {
+      //   if (position.users) {
+      //     const updatedUsers = [];
+      //     for (const user of position.users) {
+      //       const foundUser = await this.userRepository.findOne({
+      //         where: { name: user.name },
+      //       });
+      //       updatedUsers.push(foundUser || user);
+      //     }
+      //     position.users = updatedUsers; // 更新 users 数据
+      //   }
+      // }
+      for (let i = 0; i < createClubInfo.positions.length; i++) {
+        const position = createClubInfo.positions[i];
+        const foundPosition = await this.positionRepository.findOne({
+          where: { name: position.name },
+        });
+
+        if (foundPosition) {
+          createClubInfo.positions[i] = foundPosition; // 确保更新数组中的值
         }
       }
+
       savedClub.positions = createClubInfo.positions;
-      await this.clubRepository.save(club);
+      await this.clubRepository.save(savedClub);
     }
 
     if (createClubInfo.leaders) {
@@ -98,7 +101,7 @@ export class ClubService {
           if(foundPosition) {
             leader.position = foundPosition
           }
-          foundLeader.role = userRole.leader
+          leader.role = userRole.leader
           updatedLeaders.push(leader);
         }
       }
@@ -170,6 +173,7 @@ export class ClubService {
       savedClub.miniClubs = createClubInfo.miniClubs;
     }
     try {
+      console.log("before save:", savedClub)
       return await this.clubRepository.save(savedClub);
     } catch (error) {
       throw new Error(`Failed to create club: ${error.message}`);
@@ -181,6 +185,11 @@ export class ClubService {
     return await this.clubRepository.find({ relations: ['admin', 'miniClubs', 'positions', 'leaders', 'workers', 'miniClubs.leader', 'miniClubs.workers'] });
   }
 
+  async deleteClubByClubName(clubName: string) {
+    console.log('deleting club');
+    return await this.clubRepository.delete({clubName: clubName});
+  }
+
   async updateClub(id: string, updateInfo: Record<string, any>) {
     console.log('updating club');
     return await this.clubRepository.update({id}, updateInfo);
@@ -190,7 +199,7 @@ export class ClubService {
     return await this.clubRepository.findOne({where:{clubName: clubName}, relations: ['miniClubs', 'miniClubs.leader', 'miniClubs.workers', 'admin',
         'leaders', 'workers', 'workers.position', 'leaders.position', 'leaders.leadingMiniClub',
         'workers.workingMiniClub', 'miniClubs.leader.position', 'miniClubs.workers.position', 'miniClubs.leader.leadingMiniClub',
-        'miniClubs.workers.workingMiniClub'] });
+        'miniClubs.workers.workingMiniClub', 'admin.position'] });
   }
 
   async deleteClub(id: string) {

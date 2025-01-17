@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import {forwardRef, Module} from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ClubEntity } from './club.entity';
 import { ClubService } from './club.service';
@@ -8,8 +8,9 @@ import { UserModule } from '../user/user.module';
 import {PositionModule} from "../position/position.module";
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ClubEntity]), UserModule, MiniClubModule, PositionModule],
+  imports: [TypeOrmModule.forFeature([ClubEntity]), forwardRef(()=>UserModule), MiniClubModule, PositionModule],
   controllers: [ClubController],
   providers: [ClubService],
+  exports: [TypeOrmModule]
 })
 export class ClubModule {}
